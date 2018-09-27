@@ -175,7 +175,7 @@ def combine(inBlock_length, outBlock_length, leftBlock, rightBlock, outBlock):
     assert (len(rightBlock) == inBlock_length)
 
     ### BEGIN - TODO (insert code here)
-
+    del outBlock[:]
     outBlock.extend(leftBlock)
     outBlock.extend(rightBlock)
 
@@ -197,8 +197,10 @@ def copy(block_length, inBlock, outBlock):
     assert (len(inBlock) == block_length)  # Verify whether the length of input block is as specified
 
     ### BEGIN - TODO (insert code from here)
+    del outBlock[:]
     outBlock.extend(inBlock)
     ### END - TODO
+
 
     assert (len(outBlock) == block_length)
 
@@ -218,6 +220,7 @@ def exclusiveOr(block_length, inBlock1, inBlock2, outBlock):
     ### BEGIN - TODO (insert code here)
     for i in range(block_length):
         outBlock[i] ^= inBlock1[i]
+
     ### END - TODO
 
     assert (len(outBlock) == block_length)
@@ -240,24 +243,28 @@ def substitute(inBlock, outBlock, SubstituteTables):
 
     ### BEGIN - TODO (insert code here)
 
-    outBlock = [0] * 32  # outBlock = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] ----identical Function ----
-    for i in range(8):
-        row = 2 * inBlock[i * 6] + inBlock[i + 6 + 5]
-        col = 8 * inBlock[i * 6 + 1] + 4 * inBlock[i * 6 + 2] + \
-              2 * inBlock[i * 6 + 3] + inBlock[i * 6 + 4]
+    # ---- identical Function ----
+    preoutBlock = [0] * 32
+    # outBlock = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    # ----------------------------
+    for i in range(7):
+        row = 2 * inBlock[i * 6] + inBlock[(i + 6) + 5]
+        col = 8 * inBlock[(i * 6) + 1] + 4 * inBlock[(i * 6) + 2] + \
+              2 * inBlock[(i * 6) + 3] + inBlock[(i * 6) + 4]
 
         value = SubstituteTables[i][row][col]
 
-        outBlock[i*4] = value % 8
-        outBlock[i*4+1] = value % 4
-        outBlock[i*4+2] = value % 2
-        outBlock[i*4+3] = value
+        preoutBlock[i*4] = value % 8
+        preoutBlock[i*4+1] = value % 4
+        preoutBlock[i*4+2] = value % 2
+        preoutBlock[i*4+3] = value
 
-
+    outBlock.extend(preoutBlock)
 
     ### END - TODO
 
     assert (len(outBlock) == 32)
+
 
 
 def function(inBlock, RoundKey, outBlock):
@@ -274,15 +281,19 @@ def function(inBlock, RoundKey, outBlock):
 
     T1 = []
     T2 = []
-    T3 = [0]
+    T3 = []
 
     ### BEGIN - TODO (insert code here)
+    print(inBlock)
     permute(32, 48, inBlock, T1, ExpansionPermutationTable)
+    print("T1:  ", len(T1), T1)
     exclusiveOr(48, T1, RoundKey, T2)
-    print("T2:  ", T2)
+    print("T2:  ", len(T2), T2)
     substitute(T2, T3, SubstituteTables)
-    print("T3:  ", T3)
+    print("T3:  ", len(T3), T3)
     permute(32, 32, T3, outBlock, StraightPermutationTable)
+
+    del T1, T2, T3
     ### END - TODO
 
     assert (len(outBlock) == 32)
@@ -305,10 +316,14 @@ def mixer(leftBlock, rightBlock, RoundKey):
     T3 = []
 
     ### BEGIN - TODO (insert code here)
+
     copy(32,rightBlock, T1)
     function(T1, RoundKey, T2)
     exclusiveOr(32, leftBlock, T2, T3)
     copy(32, T3, rightBlock)
+
+    del T1, T2, T3
+
     ### END - TODO
 
 
@@ -330,6 +345,8 @@ def swapper(leftBlock, rightBlock):
     copy(32, leftBlock, T)
     copy(32, rightBlock, leftBlock)
     copy(32, T, rightBlock)
+
+    del T
     ### END - TODO
 
 
@@ -343,7 +360,7 @@ def Cipher(plainBlock, RoundKeys, cipherBlock):
     ### END - description of parameters
     assert (len(plainBlock) == 64)
     assert (len(RoundKeys) == 16)
-    for i in range(16):
+    for i in range(15):
         assert (len(RoundKeys[i]) == 48)
 
     inBlock = []
@@ -352,45 +369,45 @@ def Cipher(plainBlock, RoundKeys, cipherBlock):
     outBlock = []
 
     ### BEGIN - Uncomment when you test result for each round  in the report
-    # print ("=" * 60 + "\nPlaintext: %s" % \
-    #       BinaryArrayToHexString(plainBlock, 16))
+    print ("=" * 60 + "\nPlaintext: %s" % \
+          BinaryArrayToHexString(plainBlock, 16))
     ### END - Uncomment when you test result for each round  in the report
 
     permute(64, 64, plainBlock, inBlock, InitialPermutationTable)
     ### BEGIN - Uncomment when you test result for each round  in the report
-    # print ("-" * 60 + "\nAfter initial permutation: %s" % \
-    #       BinaryArrayToHexString(inBlock, 16))
+    print ("-" * 60 + "\nAfter initial permutation: %s" % \
+          BinaryArrayToHexString(inBlock, 16))
     ### END - Uncomment when you test result for each round  in the report
 
     split(64, 32, inBlock, leftBlock, rightBlock)
     ### BEGIN - Uncomment when you test result for each round  in the report
-    # print ("After splitting: L0 = %s,\tR0 = %s" % \
-    #       (BinaryArrayToHexString(leftBlock, 8), \
-    #        BinaryArrayToHexString(rightBlock, 8)) )
+    print ("After splitting: L0 = %s,\tR0 = %s" % \
+          (BinaryArrayToHexString(leftBlock, 8), \
+           BinaryArrayToHexString(rightBlock, 8)) )
 
-    # print ("-" * 60 + "\nRound,\t\tLeft\t\tRight\t\tRound Key")
+    print ("-" * 60 + "\nRound\t\tLeft\t\tRight\t\tRound Key")
     ### END - Uncomment when you test result for each round  in the report
     for round in range(16):
         mixer(leftBlock, rightBlock, RoundKeys[round])
         if (round != 15):   swapper(leftBlock, rightBlock)
         ### BEGIN - Uncomment when you test result for each round  in the report
-        # print ("Round %3d:\t%s\t%s\t%s" % \
-        #       ((round + 1), \
-        #        BinaryArrayToHexString(leftBlock, 8), \
-        #        BinaryArrayToHexString(rightBlock, 8), \
-        #        BinaryArrayToHexString(RoundKeys[round], 12)) )
+        print ("Round %3d:\t%s\t%s\t%s" % \
+              ((round + 1), \
+               BinaryArrayToHexString(leftBlock, 8), \
+               BinaryArrayToHexString(rightBlock, 8), \
+               BinaryArrayToHexString(RoundKeys[round], 12)))
         ### END - Uncomment when you test result for each round  in the report
 
     combine(32, 64, leftBlock, rightBlock, outBlock)
     ### BEGIN - Uncomment when you test result for each round  in the report
-    # print ("-" * 60 + "\nAfter combination: %s" % \
-    #       BinaryArrayToHexString(outBlock, 16) )
+    print ("-" * 60 + "\nAfter combination: %s" % \
+          BinaryArrayToHexString(outBlock, 16) )
     ### END - Uncomment when you test result for each round  in the report
 
     permute(64, 64, outBlock, cipherBlock, FinalPermutationTable)
     ### BEGIN - Uncomment when you test result for each round  in the report
-    # print ("Ciphertext: %s\t(after final permutation)" % \
-    #       BinaryArrayToHexString(cipherBlock, 16))
+    print ("Ciphertext: %s\t(after final permutation)" %
+           BinaryArrayToHexString(cipherBlock, 16))
     ### END - Uncomment when you test result for each round  in the report
 
     assert (len(cipherBlock) == 64)
@@ -416,17 +433,16 @@ def Key_Generator(keyWithParities, RoundKeys, ShiftTable):
     permute(64, 56, keyWithParities, cipherKey, ParityDropTable)
     split(56, 28, cipherKey, leftKey, rightKey)
 
-    for round in range(16):
+    for round in range(15):
         shiftLeft(leftKey, ShiftTable[round])
         shiftLeft(rightKey, ShiftTable[round])
         combine(28, 56, leftKey, rightKey, preRoundKey)
         permute(56, 48, preRoundKey, RoundKeys[round], KeyCompressionTable)
-        preRoundKey = []
 
     ### END - TODO
 
     assert (len(RoundKeys) == 16)
-    for round in range(16):
+    for round in range(15):
         assert (len(RoundKeys[round]) == 48)
 
 
