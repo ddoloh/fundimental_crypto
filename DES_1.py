@@ -197,7 +197,7 @@ def copy(block_length, inBlock, outBlock):
     assert (len(inBlock) == block_length)  # Verify whether the length of input block is as specified
 
     ### BEGIN - TODO (insert code from here)
-    outBlock = inBlock
+    outBlock.extend(inBlock)
     ### END - TODO
 
     assert (len(outBlock) == block_length)
@@ -240,6 +240,21 @@ def substitute(inBlock, outBlock, SubstituteTables):
 
     ### BEGIN - TODO (insert code here)
 
+    outBlock = [0] * 32  # outBlock = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] ----identical Function ----
+    for i in range(8):
+        row = 2 * inBlock[i * 6] + inBlock[i + 6 + 5]
+        col = 8 * inBlock[i * 6 + 1] + 4 * inBlock[i * 6 + 2] + \
+              2 * inBlock[i * 6 + 3] + inBlock[i * 6 + 4]
+
+        value = SubstituteTables[i][row][col]
+
+        outBlock[i*4] = value % 8
+        outBlock[i*4+1] = value % 4
+        outBlock[i*4+2] = value % 2
+        outBlock[i*4+3] = value
+
+
+
     ### END - TODO
 
     assert (len(outBlock) == 32)
@@ -253,18 +268,21 @@ def function(inBlock, RoundKey, outBlock):
     ###   RoundKey:           48-bit round key for each round
     ###   outBlock:           output block after DES function
     ### END - description of parameters
+
     assert (len(inBlock) == 32)
     assert (len(RoundKey) == 48)
 
     T1 = []
     T2 = []
-    T3 = []
+    T3 = [0]
 
     ### BEGIN - TODO (insert code here)
-    permute(32, 48, inBlock, T1, KeyCompressionTable)
+    permute(32, 48, inBlock, T1, ExpansionPermutationTable)
     exclusiveOr(48, T1, RoundKey, T2)
+    print("T2:  ", T2)
     substitute(T2, T3, SubstituteTables)
-    permute(32, 32, T3, outBlock, KeyCompressionTable)
+    print("T3:  ", T3)
+    permute(32, 32, T3, outBlock, StraightPermutationTable)
     ### END - TODO
 
     assert (len(outBlock) == 32)
@@ -288,7 +306,7 @@ def mixer(leftBlock, rightBlock, RoundKey):
 
     ### BEGIN - TODO (insert code here)
     copy(32,rightBlock, T1)
-    function(T1,  RoundKey, T2)
+    function(T1, RoundKey, T2)
     exclusiveOr(32, leftBlock, T2, T3)
     copy(32, T3, rightBlock)
     ### END - TODO
@@ -399,11 +417,11 @@ def Key_Generator(keyWithParities, RoundKeys, ShiftTable):
     split(56, 28, cipherKey, leftKey, rightKey)
 
     for round in range(16):
-        preRoundKey = []
         shiftLeft(leftKey, ShiftTable[round])
         shiftLeft(rightKey, ShiftTable[round])
         combine(28, 56, leftKey, rightKey, preRoundKey)
         permute(56, 48, preRoundKey, RoundKeys[round], KeyCompressionTable)
+        preRoundKey = []
 
     ### END - TODO
 
