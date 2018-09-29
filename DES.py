@@ -176,6 +176,7 @@ def combine(inBlock_length, outBlock_length, leftBlock, rightBlock, outBlock):
 
     ### BEGIN - TODO (insert code here)
     del outBlock[:]
+
     outBlock.extend(leftBlock)
     outBlock.extend(rightBlock)
 
@@ -247,20 +248,22 @@ def substitute(inBlock, outBlock, SubstituteTables):
     preoutBlock = [0] * 32
     # outBlock = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     # ----------------------------
-    for i in range(7):
+    for i in range(8):
         row = 2 * inBlock[i * 6] + inBlock[(i + 6) + 5]
         col = 8 * inBlock[(i * 6) + 1] + 4 * inBlock[(i * 6) + 2] + \
               2 * inBlock[(i * 6) + 3] + inBlock[(i * 6) + 4]
 
         value = SubstituteTables[i][row][col]
 
-        preoutBlock[i*4] = value % 8
-        preoutBlock[i*4+1] = value % 4
-        preoutBlock[i*4+2] = value % 2
-        preoutBlock[i*4+3] = value
+        preoutBlock[i * 4] = value / 8
+        value = value % 8
+        preoutBlock[i * 4 + 1] = value / 4
+        value = value % 4
+        preoutBlock[i * 4 + 2] = value / 2
+        value = value % 2
+        preoutBlock[i * 4 + 3] = value
 
     outBlock.extend(preoutBlock)
-
     ### END - TODO
 
     assert (len(outBlock) == 32)
@@ -284,13 +287,12 @@ def function(inBlock, RoundKey, outBlock):
     T3 = []
 
     ### BEGIN - TODO (insert code here)
-    print(inBlock)
     permute(32, 48, inBlock, T1, ExpansionPermutationTable)
-    print("T1:  ", len(T1), T1)
+    # print("T1:  ", len(T1), T1)
     exclusiveOr(48, T1, RoundKey, T2)
-    print("T2:  ", len(T2), T2)
+    # print("T2:  ", len(T2), T2)
     substitute(T2, T3, SubstituteTables)
-    print("T3:  ", len(T3), T3)
+    # print("T3:  ", len(T3), T3)
     permute(32, 32, T3, outBlock, StraightPermutationTable)
 
     del T1, T2, T3
@@ -360,7 +362,7 @@ def Cipher(plainBlock, RoundKeys, cipherBlock):
     ### END - description of parameters
     assert (len(plainBlock) == 64)
     assert (len(RoundKeys) == 16)
-    for i in range(15):
+    for i in range(16):
         assert (len(RoundKeys[i]) == 48)
 
     inBlock = []
@@ -433,7 +435,7 @@ def Key_Generator(keyWithParities, RoundKeys, ShiftTable):
     permute(64, 56, keyWithParities, cipherKey, ParityDropTable)
     split(56, 28, cipherKey, leftKey, rightKey)
 
-    for round in range(15):
+    for round in range(16):
         shiftLeft(leftKey, ShiftTable[round])
         shiftLeft(rightKey, ShiftTable[round])
         combine(28, 56, leftKey, rightKey, preRoundKey)
@@ -576,5 +578,9 @@ def main():
            BinaryArrayToHexString(ciphertext, 16), \
            BinaryArrayToHexString(restored, 16)))
 
+    if plaintext == restored:
+        print("decryption done.")
+    else:
+        print("error on decryption.")
 
 main()  # invocation of main function
