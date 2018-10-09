@@ -14,6 +14,8 @@ cipher key : 128 or 192 or 256 bits
 ###########################################
 '''
 
+import finite_field_mult
+
 SBOX = (
 #ROW  0    1     2     3     4     5     6     7      8     9    10    11    12    13    14    15
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76, # ROW 0
@@ -84,6 +86,17 @@ inv_SBOX = (
     0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D, # ROW 15
 )
 
+def bytes2matrix(text):
+    ##### 16-byte array to 4*4 matrix #####
+    return [list(text[i:i+4]) for i in range(0, len(text), 4)]
+
+
+def matrix2bytes(matrix):
+    ##### 4*4 matrix to 16-byte array #####
+    return bytes(sum(matrix, []))
+
+''' inverse transformation of SubBytes function is invSubBytes function  '''
+
 def SubBytes(s_rc):
     for i in range(4):
         for j in range(4):
@@ -93,6 +106,7 @@ def invSubBytes(s_rc):
     for i in range(4):
         for j in range(4):
             s_rc[i][j] = inv_SBOX[s_rc[i][j]]
+
 
 def ShiftRows(s_rc):
     s_rc[0][1], s_rc[1][1], s_rc[2][1], s_rc[3][1] = s_rc[1][1], s_rc[2][1], s_rc[3][1], s_rc[0][1]
@@ -104,4 +118,43 @@ def inv_ShiftRows(s_rc):
     s_rc[0][2], s_rc[1][2], s_rc[2][2], s_rc[3][2] = s_rc[2][2], s_rc[3][2], s_rc[0][2], s_rc[1][2]
     s_rc[0][3], s_rc[1][3], s_rc[2][3], s_rc[3][3] = s_rc[1][3], s_rc[2][3], s_rc[3][3], s_rc[0][3]
 
-def mixColumn():
+def CopyColumn(input_col, output_col):
+    output_col.extend(input_col)
+
+def mixColumn(input_col, output_col):
+    for c in range(4):
+        output_col.exttend(SubmixColumn(input_col[c]))
+
+def SubmixColumn(col):
+    T = []
+    CopyColumn(col, T)
+    col[0] = (finite_field_mult(0x02, T[0])) ^ (finite_field_mult(0x03, T[1])) ^ T[2] ^ T[3]
+    col[1] = T[0] ^ (finite_field_mult(0x02, T[1])) ^ finite_field_mult(0x03, T[2]) % T[3]
+    col[2] = T[0] ^ T[1] ^ finite_field_mult(0x02, T[2]) ^ finite_field_mult(0x03, T[3])
+    col[3] = finite_field_mult(0x03, T[0]) ^ T[1] ^ T[2] ^ finite_field_mult(0x02, T[3])
+
+
+def AddroundKey(State, Key_Word):
+    for i in range(4):
+        for j in range(4):
+            State[i][j] ^= Key_Word[i][j]
+
+def KeyExpansion(Key, w):
+
+    T = []
+    for i in range(4):
+        w[i] = Key[4*i] + Key[4*i+1] + Key[4*i+2] + Key[4*i+3]
+
+    for i in range(4, 43):
+        if (i % 4) != 0 :
+            w[i] = w[i-1] + w[i-4]
+        else:
+            w[i] = T + w[i-4]
+            # TODO : make subword and rotword function
+
+def Cipher(input_block, output_block, w):
+
+    T = []
+    T = matrix2bytes(input_block)
+
+    S = AddroundKey(T, w)
