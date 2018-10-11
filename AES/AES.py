@@ -139,6 +139,19 @@ def AddroundKey(State, Key_Word):
         for j in range(4):
             State[i][j] ^= Key_Word[i][j]
 
+def shiftLeft(block):
+    for i in range(len(block)):
+        T = block[0]
+        block[:] = block[1:]
+        block.append(T)
+
+def SubWord(s):
+    for i in range():
+
+def RotWord():
+
+def RoundConstant():
+
 def KeyExpansion(Key, w):
 
     T = []
@@ -149,10 +162,11 @@ def KeyExpansion(Key, w):
         if (i % 4) != 0 :
             w[i] = w[i-1] + w[i-4]
         else:
+            Temporary_Word = SubWord(w[i-1]) ^ RoundConstant([i/4])
             w[i] = T + w[i-4]
-            # TODO : make subword and rotword function
+            # TODO : make subword and rotword function, RoundConstant func
 
-def Cipher(input_block, output_block, w):
+def Cipher_128(input_block, output_block, w):
 
     T = []
     T = matrix2bytes(input_block)
