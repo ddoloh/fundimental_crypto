@@ -145,10 +145,17 @@ def shiftLeft(block):
         block[:] = block[1:]
         block.append(T)
 
-def SubWord(s):
-    for i in range():
+def SubWord(state):
+    ### substitute first four bytes of input state ###
+    for i in range(4):
+        state[i] = SBOX[i]
 
-def RotWord():
+def RotWord(state):
+    T = state[0]
+    state[0] = state[1]
+    state[1] = state[2]
+    state[2] = state[3]
+    del T
 
 def RoundConstant():
 
@@ -164,11 +171,27 @@ def KeyExpansion(Key, w):
         else:
             Temporary_Word = SubWord(w[i-1]) ^ RoundConstant([i/4])
             w[i] = T + w[i-4]
-            # TODO : make subword and rotword function, RoundConstant func
 
-def Cipher_128(input_block, output_block, w):
+def Cipher(plaintext, output_state, w, numberOfRounds):
 
-    T = []
-    T = matrix2bytes(input_block)
+    T = matrix2bytes(plaintext)
+    KeyExpansion()
 
     S = AddroundKey(T, w)
+
+
+    for i in numberOfRounds:
+        SubBytes(S)
+        ShiftRows(S)
+        mixColumn(S)
+        AddroundKey(S)
+
+    SubBytes()
+    ShiftRows()
+    AddroundKey()
+
+    output_state = bytes2matrix()
+
+
+
+
