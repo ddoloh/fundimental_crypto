@@ -14,6 +14,11 @@ cipher key : 128 or 192 or 256 bits
 ###########################################
 '''
 
+###          Key Length    Block Length    Number of Rounds
+### AES-128      4              4                 10
+### AES-192      6              4                 12
+### AES-256      8              4                 14
+
 import finite_field_mult
 
 SBOX = (
@@ -86,6 +91,16 @@ inv_SBOX = (
     0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D, # ROW 15
 )
 
+Rcon = (
+    0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+)
+
+# learned from http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
+xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
+
 def bytes2matrix(text):
     ##### 16-byte array to 4*4 matrix #####
     return [list(text[i:i+4]) for i in range(0, len(text), 4)]
@@ -108,23 +123,35 @@ def invSubBytes(s_rc):
             s_rc[i][j] = inv_SBOX[s_rc[i][j]]
 
 
-def ShiftRows(s_rc):
-    s_rc[0][1], s_rc[1][1], s_rc[2][1], s_rc[3][1] = s_rc[1][1], s_rc[2][1], s_rc[3][1], s_rc[0][1]
-    s_rc[0][2], s_rc[1][2], s_rc[2][2], s_rc[3][2] = s_rc[2][2], s_rc[3][2], s_rc[0][2], s_rc[1][2]
-    s_rc[0][3], s_rc[1][3], s_rc[2][3], s_rc[3][3] = s_rc[3][3], s_rc[0][3], s_rc[1][3], s_rc[2][3]
+def ShiftRows(state):
+    state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
+    state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
+    state[0][3], state[1][3], state[2][3], state[3][3] = state[3][3], state[0][3], state[1][3], state[2][3]
 
-def inv_ShiftRows(s_rc):
-    s_rc[0][1], s_rc[1][1], s_rc[2][1], s_rc[3][1] = s_rc[3][1], s_rc[0][1], s_rc[1][1], s_rc[2][1]
-    s_rc[0][2], s_rc[1][2], s_rc[2][2], s_rc[3][2] = s_rc[2][2], s_rc[3][2], s_rc[0][2], s_rc[1][2]
-    s_rc[0][3], s_rc[1][3], s_rc[2][3], s_rc[3][3] = s_rc[1][3], s_rc[2][3], s_rc[3][3], s_rc[0][3]
+def inv_ShiftRows(state):
+    state[0][1], state[1][1], state[2][1], state[3][1] = state[3][1], state[0][1], state[1][1], state[2][1]
+    state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
+    state[0][3], state[1][3], state[2][3], state[3][3] = state[1][3], state[2][3], state[3][3], state[0][3]
 
 def CopyColumn(input_col, output_col):
     output_col.extend(input_col)
 
-def mixColumn(input_col, output_col):
+def mixColumn(input_col):
+    output_col = []
     for c in range(4):
-        output_col.exttend(SubmixColumn(input_col[c]))
+        output_col.extend(SubmixColumn(input_col[c]))
 
+    return output_col
+
+def SubmixColumn(col):
+    t = col[0] ^ col[1] ^ col[2] ^ col[3]
+    u = col[0]
+    col[0] ^= t ^ xtime(col[0] ^ col[1])
+    col[1] ^= t ^ xtime(col[1] ^ col[2])
+    col[2] ^= t ^ xtime(col[2] ^ col[3])
+    col[3] ^= t ^ xtime(col[3] ^ u)
+    return col
+'''    
 def SubmixColumn(col):
     T = []
     CopyColumn(col, T)
@@ -132,7 +159,7 @@ def SubmixColumn(col):
     col[1] = T[0] ^ (finite_field_mult(0x02, T[1])) ^ finite_field_mult(0x03, T[2]) % T[3]
     col[2] = T[0] ^ T[1] ^ finite_field_mult(0x02, T[2]) ^ finite_field_mult(0x03, T[3])
     col[3] = finite_field_mult(0x03, T[0]) ^ T[1] ^ T[2] ^ finite_field_mult(0x02, T[3])
-
+'''
 
 def AddroundKey(State, Key_Word):
     for i in range(4):
@@ -155,9 +182,8 @@ def RotWord(state):
     state[0] = state[1]
     state[1] = state[2]
     state[2] = state[3]
+    state[3] = T
     del T
-
-def RoundConstant():
 
 def KeyExpansion(Key, w):
 
@@ -169,29 +195,69 @@ def KeyExpansion(Key, w):
         if (i % 4) != 0 :
             w[i] = w[i-1] + w[i-4]
         else:
-            Temporary_Word = SubWord(w[i-1]) ^ RoundConstant([i/4])
+            Temporary_Word = SubWord(w[i-1]) ^ Rcon[i/4]
             w[i] = T + w[i-4]
 
-def Cipher(plaintext, output_state, w, numberOfRounds):
+def Cipher(plaintext,key, numberOfRounds):
 
-    T = matrix2bytes(plaintext)
-    KeyExpansion()
+    #T = matrix2bytes(plaintext)
+    #KeyExpansion()
 
-    S = AddroundKey(T, w)
-
-
-    for i in numberOfRounds:
-        SubBytes(S)
-        ShiftRows(S)
-        mixColumn(S)
-        AddroundKey(S)
-
-    SubBytes()
-    ShiftRows()
-    AddroundKey()
-
-    output_state = bytes2matrix()
+    state = bytes2matrix(plaintext)
+    key = bytes2matrix(key)
+    #S = AddroundKey(T, key)
 
 
+    for i in range(numberOfRounds):
+        SubBytes(state)
+        ShiftRows(state)
+        mixColumn(state)
+        AddroundKey(state, key)
 
+    S = SubBytes(state)
+    S = ShiftRows(state)
+    S = AddroundKey(state, key)
 
+    output_state = bytes2matrix(state)
+
+    return output_state
+
+def H2B(letter):
+    if (letter.isdigit()):
+        return int(letter)
+    elif (letter == "a" or letter == "A"):
+        return 10
+    elif (letter == "b" or letter == "B"):
+        return 11
+    elif (letter == "c" or letter == "C"):
+        return 12
+    elif (letter == "d" or letter == "D"):
+        return 13
+    elif (letter == "e" or letter == "E"):
+        return 14
+    elif (letter == "f" or letter == "F"):
+        return 15
+
+def HexStringToBinaryArray(inString):
+    result = []
+    value = 0
+    for currentLetter in inString:
+        value = H2B(currentLetter)
+        if (value == None):
+            return None
+        result.append(value / 8)
+        value = value % 8
+        result.append(value / 4)
+        value = value % 4
+        result.append(value / 2)
+        value = value % 2
+        result.append(value)
+    return result
+
+def main():
+    plaintext = HexStringToBinaryArray("0123456789ABCDEF")
+    key = HexStringToBinaryArray("FEDCBA9876543210")
+    output = Cipher(plaintext, key, 10)
+    print(output)
+
+main()
