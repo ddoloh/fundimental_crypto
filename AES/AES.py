@@ -156,27 +156,113 @@ def matrix2bytes(matrix):
 
 ''' inverse transformation of SubBytes function is invSubBytes function  '''
 
-def SubBytes(s_rc):
-    for i in range(4):
-        for j in range(4):
-            s_rc[i][j] = SBOX[s_rc[i][j]]
+def SubBytes(state):
+    for i in range(128):
+        state[i] = SBOX[state[i]]
 
-def invSubBytes(s_rc):
-    for i in range(4):
-        for j in range(4):
-            s_rc[i][j] = inv_SBOX[s_rc[i][j]]
+def invSubBytes(state):
+    for i in range(128):
+        state[i] = inv_SBOX[state[i]]
 
 
 def ShiftRows(state):
-    state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
-    state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
-    state[0][3], state[1][3], state[2][3], state[3][3] = state[3][3], state[0][3], state[1][3], state[2][3]
+
+    #state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
+    #state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
+    #state[0][3], state[1][3], state[2][3], state[3][3] = state[3][3], state[0][3], state[1][3], state[2][3]
+    tmp13 = state[13]
+    state[13] = state[1]
+    state[1] = state[5]
+    state[5] = state[9]
+    state[9] = tmp13
+
+    tmp15 = state[15]
+    state[15] = state[11]
+    state[11] = state[7]
+    state[7] = state[3]
+    state[3] = tmp15
+
+    tmp2 = state[2]
+    state[2] = state[10]
+    state[10] = tmp2
+
+    tmp6 = state[6]
+    state[6] = state[14]
+    state[14] = tmp6
+
 
 def inv_ShiftRows(state):
-    state[0][1], state[1][1], state[2][1], state[3][1] = state[3][1], state[0][1], state[1][1], state[2][1]
-    state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
-    state[0][3], state[1][3], state[2][3], state[3][3] = state[1][3], state[2][3], state[3][3], state[0][3]
 
+#    state[0][1], state[1][1], state[2][1], state[3][1] = state[3][1], state[0][1], state[1][1], state[2][1]
+#    state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
+#    state[0][3], state[1][3], state[2][3], state[3][3] = state[1][3], state[2][3], state[3][3], state[0][3]
+    tmp = state[13]
+    state[13] = state[9]
+    state[9] = state[5]
+    state[5] = state[1]
+    state[1] = tmp
+
+    tmp = state[10]
+    tmp2 = state[14]
+    state[10] = state[2]
+    state[14] = state[6]
+    state[2] = tmp
+    state[6] = tmp2
+
+    tmp = state[11]
+    state[11] = state[15]
+    state[15] = state[3]
+    state[3] = state[7]
+    state[7] = tmp
+
+
+def mixColumn(state):
+    block = []
+    while len(block) < 16: block.append(0)
+    k = 0
+    while k <= 16-4:
+        block[k] = GF(2,state[k])^GF(3,state[k+1])^GF(1,state[k+2])^GF(1,state[k+3])
+        block[k+1] = GF(1,state[k])^GF(2,state[k+1])^GF(3,state[k+2])^GF(1,state[k+3])
+        block[k+2] = GF(1,state[k])^GF(1,state[k+1])^GF(2,state[k+2])^GF(3,state[k+3])
+        block[k+3] = GF(3,state[k])^GF(1,state[k+1])^GF(1,state[k+2])^GF(2,state[k+3])
+        k += 4
+    return block
+
+def InvMixColumns(state):
+    block = []
+    while len(block) < 16: block.append(0)
+    k = 0
+    while k <= 16-4:
+        block[k] = GF(14,state[k])^GF(11,state[k+1])^GF(13,state[k+2])^GF(9,state[k+3])
+        block[k+1] = GF(9,state[k]) ^GF(14,state[k+1])^GF(11,state[k+2])^GF(13,state[k+3])
+        block[k+2] = GF(13,state[k])^GF(9,state[k+1]) ^GF(14,state[k+2])^GF(11,state[k+3])
+        block[k+3] = GF(11,state[k])^GF(13,state[k+1])^GF(9,state[k+2]) ^GF(14,state[k+3])
+        k += 4
+    return block
+
+# Galois multiplication in GF(2^8) of 8 bit characters a and b
+def GF(a, b):
+    r = 0
+    for times in range(8):
+        if (b & 1) == 1: r = r ^ a
+        if r > 0x100: r = r ^ 0x100
+        # keep r 8 bit
+        hi_bit_set = (a & 0x80)
+        a = a << 1
+        if a > 0x100:
+            # keep a 8 bit
+            a = a ^ 0x100
+        if hi_bit_set == 0x80:
+            a = a ^ 0x1b
+        if a > 0x100:
+            # keep a 8 bit
+            a = a ^ 0x100
+        b = b >> 1
+        if b > 0x100:
+            # keep b 8 bit
+            b = b ^ 0x100
+    return r
+'''
 def CopyColumn(input_col, output_col):
     output_col.extend(input_col)
 
@@ -188,6 +274,7 @@ def mixColumn(input_col):
     return output_col
 
 def SubmixColumn(col):
+    print(col)
     t = col[0] ^ col[1] ^ col[2] ^ col[3]
     u = col[0]
     col[0] ^= t ^ xtime(col[0] ^ col[1])
@@ -195,8 +282,7 @@ def SubmixColumn(col):
     col[2] ^= t ^ xtime(col[2] ^ col[3])
     col[3] ^= t ^ xtime(col[3] ^ u)
     return col
-
-'''    
+    
 def SubmixColumn(col):
     T = []
     CopyColumn(col, T)
@@ -206,11 +292,10 @@ def SubmixColumn(col):
     col[3] = finite_field_mult(0x03, T[0]) ^ T[1] ^ T[2] ^ finite_field_mult(0x02, T[3])
 '''
 
-def AddroundKey(State, Key_Word):
-    for i in range(4):
-        for j in range(4):
-            State[i][j] ^= Key_Word[i][j]
-
+def AddroundKey(State, Key):
+    for i in range(16):
+        if i < len(Key): State[i] = State[i] ^ Key[i]
+    return State
 def shiftLeft(block):
     for i in range(len(block)):
         T = block[0]
@@ -229,12 +314,11 @@ def RotWord(state):
     state[3] = T
     return state
 
-def KeyExpansion(Key, Key_size, RoundKey, RoundKeySize):
+def KeyExpansion(Key, Key_size, RoundKeySize):
 
     i = 0
     rconIteration = 1
     word = [0, 0, 0, 0]
-
     RoundKey = []
     while len(RoundKey) < RoundKeySize: RoundKey.append(0)
 
@@ -242,7 +326,8 @@ def KeyExpansion(Key, Key_size, RoundKey, RoundKeySize):
 
     i += Key_size
     while i < RoundKeySize:
-        for k in range(4): word[k] = RoundKey[(i - 4) + k]
+        for k in range(4):
+            word[k] = RoundKey[(i - 4) + k]
 
         # Every 16,24,32 bytes
         if i % Key_size == 0:
@@ -255,23 +340,18 @@ def KeyExpansion(Key, Key_size, RoundKey, RoundKeySize):
         # For 256-bit keys, we add an extra Sbox to the calculation
         if Key_size == 256/8 and (i % Key_size) == Nb*4:
             for e in range(4): word[e] = SubWord(word[e])
-
         for m in range(4):
             RoundKey[i] = RoundKey[i - Key_size] ^ word[m]
             i += 1
 
     return RoundKey
 
-def Encryption(plaintext,key, numberOfRounds):
-    state = bytes2matrix(plaintext)
-    key = bytes2matrix(key)
-    RoundKey = []
-    RoundKeySize = (numberOfRounds+1) * Nb
-    print(key)
-    KeyExpansion(key, len(key), RoundKey, RoundKeySize)
-    print(RoundKey)
-    #S = AddroundKey(T, key)
+def Encryption(plaintext, key, numberOfRounds):
+    state = plaintext
+    RoundKeySize = 128
+    RoundKey = KeyExpansion(key, len(key), RoundKeySize)
 
+    AddroundKey(state, RoundKey)
 
     for i in range(numberOfRounds):
         SubBytes(state)
@@ -282,26 +362,17 @@ def Encryption(plaintext,key, numberOfRounds):
     SubBytes(state)
     ShiftRows(state)
     AddroundKey(state, key)
-
     output_state = bytes2matrix(state)
 
     return output_state
 
-def H2B(letter):
-    if (letter.isdigit()):
-        return int(letter)
-    elif (letter == "a" or letter == "A"):
-        return 10
-    elif (letter == "b" or letter == "B"):
-        return 11
-    elif (letter == "c" or letter == "C"):
-        return 12
-    elif (letter == "d" or letter == "D"):
-        return 13
-    elif (letter == "e" or letter == "E"):
-        return 14
-    elif (letter == "f" or letter == "F"):
-        return 15
+def BinaryListToHex(binaryList):
+    output = int()
+    output += binaryList[0]
+    output += binaryList[1] * 2
+    output += binaryList[2] * 4
+    output += binaryList[3] * 8
+    return output
 
 def HexStringToBinaryArray(inString):
     result = []
@@ -319,11 +390,27 @@ def HexStringToBinaryArray(inString):
         result.append(value)
     return result
 
+def H2B(letter):
+    if (letter.isdigit()):
+        return int(letter)
+    elif (letter == "a" or letter == "A"):
+        return 10
+    elif (letter == "b" or letter == "B"):
+        return 11
+    elif (letter == "c" or letter == "C"):
+        return 12
+    elif (letter == "d" or letter == "D"):
+        return 13
+    elif (letter == "e" or letter == "E"):
+        return 14
+    elif (letter == "f" or letter == "F"):
+        return 15
+
+
 def main():
-    plaintext = HexStringToBinaryArray("0123456789ABCDEF")
-    key = HexStringToBinaryArray("FEDCBA9876543210")
+    plaintext = HexStringToBinaryArray("3243f6a8885a308d313198a2e0370734")
+    key = HexStringToBinaryArray("2b7e151628aed2a6abf7158809cf4f3c")
     output = Encryption(plaintext, key, 10)
     print(output)
-
 
 main()
