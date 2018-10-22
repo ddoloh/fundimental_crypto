@@ -90,16 +90,9 @@ inv_SBOX = [
 
     0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D, # ROW 15
 ]
-'''
-Rcon = (
-    0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-)
 
-'''
-Rcon = [ # 236 elements?
+Rcon = [
+    # 236 elements
     0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8,
 
     0xab, 0x4d, 0x9a, 0x2f, 0x5e, 0xbc, 0x63, 0xc6, 0x97, 0x35, 0x6a, 0xd4, 0xb3,
@@ -140,36 +133,24 @@ Rcon = [ # 236 elements?
 
     0x66, 0xcc, 0x83, 0x1d, 0x3a, 0x74, 0xe8, 0xcb ]
 
-# learned from http://cs.ucsb.edu/~koc/cs178/projects/JT/aes.c
+# learned from https://github.com/boppreh/aes/blob/master/aes.py
 xtime = lambda a: (((a << 1) ^ 0x1B) & 0xFF) if (a & 0x80) else (a << 1)
-# size of state column
-Nb = 4
 
-def bytes2matrix(text):
-    ##### 16-byte array to 4*4 matrix #####
-    return [list(text[i:i+4]) for i in range(0, len(text), 4)]
-
-
-def matrix2bytes(matrix):
-    ##### 4*4 matrix to 16-byte array #####
-    return bytes(sum(matrix, []))
+Nb = 4 # size of state column
 
 ''' inverse transformation of SubBytes function is invSubBytes function  '''
-
 def SubBytes(state):
-    for i in range(128):
+    for i in range(Nb*4):
         state[i] = SBOX[state[i]]
+    return state
 
 def invSubBytes(state):
-    for i in range(128):
+    for i in range(Nb*4):
         state[i] = inv_SBOX[state[i]]
+    return state
 
 
 def ShiftRows(state):
-
-    #state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
-    #state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
-    #state[0][3], state[1][3], state[2][3], state[3][3] = state[3][3], state[0][3], state[1][3], state[2][3]
     tmp13 = state[13]
     state[13] = state[1]
     state[1] = state[5]
@@ -189,13 +170,13 @@ def ShiftRows(state):
     tmp6 = state[6]
     state[6] = state[14]
     state[14] = tmp6
+    #state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
+    #state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
+    #state[0][3], state[1][3], state[2][3], state[3][3] = state[3][3], state[0][3], state[1][3], state[2][3]
+    return state
 
 
 def inv_ShiftRows(state):
-
-#    state[0][1], state[1][1], state[2][1], state[3][1] = state[3][1], state[0][1], state[1][1], state[2][1]
-#    state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
-#    state[0][3], state[1][3], state[2][3], state[3][3] = state[1][3], state[2][3], state[3][3], state[0][3]
     tmp = state[13]
     state[13] = state[9]
     state[9] = state[5]
@@ -214,6 +195,10 @@ def inv_ShiftRows(state):
     state[15] = state[3]
     state[3] = state[7]
     state[7] = tmp
+    #    state[0][1], state[1][1], state[2][1], state[3][1] = state[3][1], state[0][1], state[1][1], state[2][1]
+    #    state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
+    #    state[0][3], state[1][3], state[2][3], state[3][3] = state[1][3], state[2][3], state[3][3], state[0][3]
+    return state
 
 
 def mixColumn(state):
@@ -262,45 +247,24 @@ def GF(a, b):
             # keep b 8 bit
             b = b ^ 0x100
     return r
-'''
-def CopyColumn(input_col, output_col):
-    output_col.extend(input_col)
-
-def mixColumn(input_col):
-    output_col = []
-    for c in range(4):
-        output_col.extend(SubmixColumn(input_col[c]))
-
-    return output_col
-
-def SubmixColumn(col):
-    print(col)
-    t = col[0] ^ col[1] ^ col[2] ^ col[3]
-    u = col[0]
-    col[0] ^= t ^ xtime(col[0] ^ col[1])
-    col[1] ^= t ^ xtime(col[1] ^ col[2])
-    col[2] ^= t ^ xtime(col[2] ^ col[3])
-    col[3] ^= t ^ xtime(col[3] ^ u)
-    return col
-    
-def SubmixColumn(col):
-    T = []
-    CopyColumn(col, T)
-    col[0] = (finite_field_mult(0x02, T[0])) ^ (finite_field_mult(0x03, T[1])) ^ T[2] ^ T[3]
-    col[1] = T[0] ^ (finite_field_mult(0x02, T[1])) ^ finite_field_mult(0x03, T[2]) % T[3]
-    col[2] = T[0] ^ T[1] ^ finite_field_mult(0x02, T[2]) ^ finite_field_mult(0x03, T[3])
-    col[3] = finite_field_mult(0x03, T[0]) ^ T[1] ^ T[2] ^ finite_field_mult(0x02, T[3])
-'''
 
 def AddroundKey(State, Key):
-    for i in range(16):
+    for i in range(Nb*4):
         if i < len(Key): State[i] = State[i] ^ Key[i]
     return State
-def shiftLeft(block):
-    for i in range(len(block)):
-        T = block[0]
-        block[:] = block[1:]
-        block.append(T)
+
+def RoundKeyPointer(RoundKey, Next_RoundKey):
+    NextRoundKey = []
+    k = 0
+
+    while len(NextRoundKey) < Nb*4 : NextRoundKey.append(0)
+    for i in range(4):
+        NextRoundKey[i * 4] = RoundKey[Next_RoundKey + k]
+        NextRoundKey[i * 4 + 1] = RoundKey[Next_RoundKey + k + 1]
+        NextRoundKey[i * 4 + 2] = RoundKey[Next_RoundKey + k + 2]
+        NextRoundKey[i * 4 + 3] = RoundKey[Next_RoundKey + k + 3]
+        k += 4  # next column
+    return NextRoundKey
 
 def SubWord(state):
     ### substitute first four bytes of input state ###
@@ -347,70 +311,68 @@ def KeyExpansion(Key, Key_size, RoundKeySize):
     return RoundKey
 
 def Encryption(plaintext, key, numberOfRounds):
-    state = plaintext
-    RoundKeySize = 128
-    RoundKey = KeyExpansion(key, len(key), RoundKeySize)
+    RoundKeySize = 128 / 8
+    state = []
 
-    AddroundKey(state, RoundKey)
+    while len(state) < len(key): state.append(0)
+    for i in range(RoundKeySize):
+        if i < len(plaintext): state[i] = plaintext[i]
 
-    for i in range(numberOfRounds):
-        SubBytes(state)
-        ShiftRows(state)
-        mixColumn(state)
-        AddroundKey(state, key)
+    RoundKey_Array_size = Nb*4*(numberOfRounds+1)
+    RoundKey = KeyExpansion(key, len(key), RoundKey_Array_size)
 
-    SubBytes(state)
-    ShiftRows(state)
-    AddroundKey(state, key)
-    output_state = bytes2matrix(state)
+    state = AddroundKey(state, key)
+    i = 0
+    while i < numberOfRounds:
+        i += 1
+        state = SubBytes(state)
+        state = ShiftRows(state)
+        if i < numberOfRounds : state = mixColumn(state)
+        state = AddroundKey(state, RoundKeyPointer(RoundKey, 4*Nb*i))
 
-    return output_state
+    return state
 
-def BinaryListToHex(binaryList):
-    output = int()
-    output += binaryList[0]
-    output += binaryList[1] * 2
-    output += binaryList[2] * 4
-    output += binaryList[3] * 8
-    return output
+def Decryption(plaintext, key, numberOfRounds):
+    RoundKeySize = 128 / 8
+    state = []
 
-def HexStringToBinaryArray(inString):
-    result = []
-    value = 0
-    for currentLetter in inString:
-        value = H2B(currentLetter)
-        if (value == None):
-            return None
-        result.append(value / 8)
-        value = value % 8
-        result.append(value / 4)
-        value = value % 4
-        result.append(value / 2)
-        value = value % 2
-        result.append(value)
-    return result
+    while len(state) < len(key): state.append(0)
+    for i in range(RoundKeySize):
+        if i < len(plaintext): state[i] = plaintext[i]
 
-def H2B(letter):
-    if (letter.isdigit()):
-        return int(letter)
-    elif (letter == "a" or letter == "A"):
-        return 10
-    elif (letter == "b" or letter == "B"):
-        return 11
-    elif (letter == "c" or letter == "C"):
-        return 12
-    elif (letter == "d" or letter == "D"):
-        return 13
-    elif (letter == "e" or letter == "E"):
-        return 14
-    elif (letter == "f" or letter == "F"):
-        return 15
+    RoundKey_Array_size = Nb*4*(numberOfRounds+1)
+    RoundKey = KeyExpansion(key, len(key), RoundKey_Array_size)
 
+    state = AddroundKey(state, RoundKeyPointer(RoundKey, Nb*4*numberOfRounds))
+    i = numberOfRounds
+    while i > 0:
+        i -= 1
+        state = inv_ShiftRows(state)
+        state = invSubBytes(state)
+        state = AddroundKey(state, RoundKeyPointer(RoundKey, 4*Nb*i))
+        if i > 0 : state = InvMixColumns(state)
+
+    return state
 
 def main():
-    plaintext = HexStringToBinaryArray("3243f6a8885a308d313198a2e0370734")
-    key = HexStringToBinaryArray("2b7e151628aed2a6abf7158809cf4f3c")
-    output = Encryption(plaintext, key, 10)
-    print(output)
+    CipherKeySize = 128 / 8
+    PlaintextString = "1234567890ABCDEF"
+    CipherKeyString = "0000000000000001"
+
+    PlaintextArray = []
+    CipherKeyArray = []
+    while len(PlaintextArray) < Nb*4: PlaintextArray.append(0)
+    while len(CipherKeyArray) < CipherKeySize: CipherKeyArray.append(0)
+
+    for i in range(len(list(PlaintextString))): PlaintextArray[i] = int(list(PlaintextString)[i].encode("hex"), 16)  # 16 stands for HEX
+    for i in range(len(list(CipherKeyString))): CipherKeyArray[i] = int(list(CipherKeyString)[i].encode("hex"), 16)  # 16 stands for HEX
+    print(PlaintextArray)
+    Cipher_message = Encryption(PlaintextArray, CipherKeyArray, CipherKeySize)
+    print("plaintext : ", ''.join(str('%0.2X' % n).decode("hex") for n in PlaintextArray))
+    print(Cipher_message)
+    print("Cipher message : ", ''.join(str('%0.2X' % n).decode("hex") for n in Cipher_message))
+    decrypted_message = Decryption(Cipher_message, CipherKeyArray, CipherKeySize)
+    print(decrypted_message)
+    print("Decrypted message : ", ''.join(str('%0.2X' % n).decode("hex") for n in decrypted_message))
 
 main()
