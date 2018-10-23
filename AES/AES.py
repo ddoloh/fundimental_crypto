@@ -170,9 +170,9 @@ def ShiftRows(state):
     tmp6 = state[6]
     state[6] = state[14]
     state[14] = tmp6
-    #state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
-    #state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
-    #state[0][3], state[1][3], state[2][3], state[3][3] = state[3][3], state[0][3], state[1][3], state[2][3]
+    # state[0][1], state[1][1], state[2][1], state[3][1] -> state[1][1], state[2][1], state[3][1], state[0][1]
+    # state[0][2], state[1][2], state[2][2], state[3][2] -> state[2][2], state[3][2], state[0][2], state[1][2]
+    # state[0][3], state[1][3], state[2][3], state[3][3] -> state[3][3], state[0][3], state[1][3], state[2][3]
     return state
 
 
@@ -195,9 +195,9 @@ def inv_ShiftRows(state):
     state[15] = state[3]
     state[3] = state[7]
     state[7] = tmp
-    #    state[0][1], state[1][1], state[2][1], state[3][1] = state[3][1], state[0][1], state[1][1], state[2][1]
-    #    state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
-    #    state[0][3], state[1][3], state[2][3], state[3][3] = state[1][3], state[2][3], state[3][3], state[0][3]
+    # state[0][1], state[1][1], state[2][1], state[3][1] -> state[3][1], state[0][1], state[1][1], state[2][1]
+    # state[0][2], state[1][2], state[2][2], state[3][2] -> state[2][2], state[3][2], state[0][2], state[1][2]
+    # state[0][3], state[1][3], state[2][3], state[3][3] -> state[1][3], state[2][3], state[3][3], state[0][3]
     return state
 
 
@@ -230,22 +230,15 @@ def GF(a, b):
     r = 0
     for times in range(8):
         if (b & 1) == 1: r = r ^ a
-        if r > 0x100: r = r ^ 0x100
-        # keep r 8 bit
+        if r > 0x100: r = r ^ 0x100               # keep r 8 bit
         hi_bit_set = (a & 0x80)
         a = a << 1
+        if a > 0x100:a = a ^ 0x100                # keep a 8 bit
+        if hi_bit_set == 0x80: a = a ^ 0x1b
         if a > 0x100:
-            # keep a 8 bit
-            a = a ^ 0x100
-        if hi_bit_set == 0x80:
-            a = a ^ 0x1b
-        if a > 0x100:
-            # keep a 8 bit
-            a = a ^ 0x100
+            a = a ^ 0x100                         # keep a 8 bit
         b = b >> 1
-        if b > 0x100:
-            # keep b 8 bit
-            b = b ^ 0x100
+        if b > 0x100: b = b ^ 0x100               # keep b 8 bit
     return r
 
 def AddroundKey(State, Key):
@@ -307,7 +300,6 @@ def KeyExpansion(Key, Key_size, RoundKeySize):
         for m in range(4):
             RoundKey[i] = RoundKey[i - Key_size] ^ word[m]
             i += 1
-
     return RoundKey
 
 def Encryption(plaintext, key, numberOfRounds):
@@ -354,6 +346,14 @@ def Decryption(plaintext, key, numberOfRounds):
 
     return state
 
+def toHex(dec):
+    x = (dec % 16)
+    digits = "0123456789ABCDEF"
+    rest = dec / 16
+    if (rest == 0):
+        return digits[x]
+    return toHex(rest) + digits[x]
+
 def main():
     CipherKeySize = 128 / 8
     PlaintextString = "1234567890ABCDEF"
@@ -366,13 +366,33 @@ def main():
 
     for i in range(len(list(PlaintextString))): PlaintextArray[i] = int(list(PlaintextString)[i].encode("hex"), 16)  # 16 stands for HEX
     for i in range(len(list(CipherKeyString))): CipherKeyArray[i] = int(list(CipherKeyString)[i].encode("hex"), 16)  # 16 stands for HEX
-    print(PlaintextArray)
+
+    print("=" * 100)
+    print("Size of PlaintextString   : %d letters" % len(PlaintextString) + " (each character can be changed to 2 hex-bit)")
+    print("Size of CipherKeyString   : %d letters" % len(CipherKeyString))
+    print("PlaintextArray            : %s" % PlaintextArray)
+    print("plaintext                 : %s" % ''.join(str('%0.2X' % n).decode("hex") for n in PlaintextArray))
+    print("CipherKey                 : %s" % CipherKeyString)
+
+    print("=" * 100)
     Cipher_message = Encryption(PlaintextArray, CipherKeyArray, CipherKeySize)
-    print("plaintext : ", ''.join(str('%0.2X' % n).decode("hex") for n in PlaintextArray))
-    print(Cipher_message)
-    print("Cipher message : ", ''.join(str('%0.2X' % n).decode("hex") for n in Cipher_message))
+    print("Size of Cipher message    : %d hex-bits" % len(Cipher_message))
+    print("CIpher message Array      : %s" %Cipher_message)
+    print("Cipher message            : %s" % ' '.join(str('%0.2X' % n).decode("hex") for n in Cipher_message))
+    print("Cipher message(toHex)     : %s" % ' '.join(toHex(x) for x in Cipher_message))
+
+    print("=" * 100)
     decrypted_message = Decryption(Cipher_message, CipherKeyArray, CipherKeySize)
-    print(decrypted_message)
-    print("Decrypted message : ", ''.join(str('%0.2X' % n).decode("hex") for n in decrypted_message))
+    decryptedString = ''.join(str('%0.2X' % n).decode("hex") for n in decrypted_message)
+    print("Size of Decrypted message : %d hex-bits" % len(decrypted_message)+ " (each character can be changed to 2 hex-bit)")
+    print("Decrypted message Array   : %s" % decrypted_message)
+    print("Decrypted message         : %s" % decryptedString)
+    print("=" * 100)
+
+    if PlaintextString == decryptedString:
+        print("no error.")
+    else:
+        print("error ")
 
 main()
+
